@@ -1,10 +1,8 @@
 class Fluent::MySQLSlowQueryExInput < Fluent::NewTailInput
   Fluent::Plugin.register_input('mysqlslowquery_ex', self)
 
-  # Define `log` method for v0.10.42 or earlier
-  unless method_defined?(:log)
-    define_method(:log) { $log }
-  end
+  config_param :dbname_if_missing_dbname_in_log, :string, default: nil
+  config_param :last_dbname_file, :string, defautl: nil
 
   def initialize
     super
@@ -14,6 +12,47 @@ class Fluent::MySQLSlowQueryExInput < Fluent::NewTailInput
   def configure(conf)
     conf['format'] = 'none'
     super
+    if conf['pos_file'] == @last_dbname_file
+      raise Fluet::ConfigError, ''
+    end
+  end
+
+  def start
+    @last_dbname_of = if @last_dbname_file
+                        @last_dbname_file_handle = File.open(@last_dbname_file, File::RDWR|File::CREAT, Fluent::DEFAULT_FILE_PERMISSION)
+                        @last_dbname_file_handle.sync = true
+                        get_last_dbname()
+                      else
+                        {}
+                      end
+    super
+  end
+
+  def shutdown
+    save_last_dbname()
+    @last_dbname_file_handle.close if @last_dbname_file_handle
+    super
+  end
+
+  def get_last_dbname
+    return unless @last_dbname_file_handle
+    @last_dbname_file_handle.pos = 0
+    last_db = @last_dbname_file_handle.read.chomp
+    begin
+      JSON.parse(last_db, symbolize_names: true)
+    rescue JSON::ParserError
+      {}
+    end
+  end
+
+  def save_last_dbname
+    return unless @last_dbname_file_handle
+    current = get_last_dbname()
+    unless current == @last_dbname_of
+      @last_dbname_file_handle.pos = 0
+      @last_dbname_file_handle.truncate(0)
+      @last_dbname_file_handle.write(JSON.generate(current.merge(@last_dbname_of)))
+    end
   end
 
   def parser
@@ -27,10 +66,12 @@ class Fluent::MySQLSlowQueryExInput < Fluent::NewTailInput
       begin
         parsed_query_unit = parser.parse_slow_log(query_unit)
       rescue
-        log.warn %Q{in_mysqlslowquery_ex: parse error: #{$!.message}}
+        log.warn %Q{in_mysqlslowquery_ex: parse error: #{$!.message}, (#{query_unit.to_s})}
         next
       end
-      es.add(Time.now.to_i, parsed_query_unit)
+      parsed_query = apply_dbname_to_record(parsed_query_unit)
+      es.add(Time.now.to_i, parsed_query)
+      save_last_dbname()
     end
 
     if !es.empty?
@@ -55,5 +96,14 @@ class Fluent::MySQLSlowQueryExInput < Fluent::NewTailInput
       end
     end
     slow_queries
+  end
+
+  def apply_dbname_to_record(parsed_query)
+    database_name = parsed_query[:db] || parsed_query[:schema] || @last_dbname_of[@path.to_sym] || @dbname_if_missing_dbname_in_log
+    @last_dbname_of[@path.to_sym] = database_name
+    parsed_query[:database] = database_name
+    parsed_query.delete(:db)
+    parsed_query.delete(:schema)
+    parsed_query
   end
 end
