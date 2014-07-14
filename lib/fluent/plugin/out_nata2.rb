@@ -9,11 +9,6 @@ class Fluent::Nata2Output < Fluent::Output
   config_param :server, :string
   config_param :port, :integer
 
-  # Define `log` method for v0.10.42 or earlier
-  unless method_defined?(:log)
-    define_method(:log) { $log }
-  end
-
   def initialize
     super
     require 'net/http'
