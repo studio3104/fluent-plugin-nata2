@@ -15,16 +15,6 @@ class Fluent::Nata2Output < Fluent::Output
     require 'uri'
   end
 
-  def start
-    super
-    #lastdabasefile open
-  end
-
-  def shutdown
-    super
-    @last_db_file.close if @last_db_file
-  end
-
   def configure(conf)
     super
     @url = 'http://' + @server + ':' + @port.to_s
@@ -44,11 +34,8 @@ class Fluent::Nata2Output < Fluent::Output
     tag = tag.split('.')
     service_name = tag.shift
     host_name = tag.join('.')
-    database_name = record[:db] || record['db'] || record[:schema] || record[:schema] || last_database(service_name, host_name)
+    database_name = record[:database] || record['database']
     [ service_name, host_name, database_name ]
-  end
-
-  def last_database(service_name, host_name)
   end
 
   def post_to_nata2(service_name, host_name, database_name, record)
