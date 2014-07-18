@@ -48,6 +48,10 @@ tail and parse slow query log.
   - required
   - path to slow query log
 
+- tag
+  - required
+  - when used in combination with out_nata, it is necessary that the end is as shown in `servicename.hostname`.
+
 #### out_nata2
 
 post parsed slow query log to `Nata2 Server`.
