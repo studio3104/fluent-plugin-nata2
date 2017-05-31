@@ -4,7 +4,7 @@ $LOAD_PATH.unshift(lib) unless $LOAD_PATH.include?(lib)
 
 Gem::Specification.new do |spec|
   spec.name          = 'fluent-plugin-nata2'
-  spec.version       = '0.0.1'
+  spec.version       = '0.0.2'
   spec.authors       = ['studio3104']
   spec.email         = ['studio3104.com@gmail.com']
   spec.summary       = %q{fluent-plugin to post slow query logs to Nata2 server}
