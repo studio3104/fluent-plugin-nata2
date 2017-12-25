@@ -2,7 +2,7 @@ class Fluent::MySQLSlowQueryExInput < Fluent::NewTailInput
   Fluent::Plugin.register_input('mysqlslowquery_ex', self)
 
   config_param :dbname_if_missing_dbname_in_log, :string, default: nil
-  config_param :last_dbname_file, :string, defautl: nil
+  config_param :last_dbname_file, :string, default: nil
 
   def initialize
     super
