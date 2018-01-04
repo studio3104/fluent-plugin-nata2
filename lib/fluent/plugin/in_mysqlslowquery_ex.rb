@@ -1,4 +1,6 @@
-class Fluent::MySQLSlowQueryExInput < Fluent::NewTailInput
+require 'fluent/plugin/in_tail'
+
+class Fluent::MySQLSlowQueryExInput < Fluent::Plugin::TailInput
   Fluent::Plugin.register_input('mysqlslowquery_ex', self)
 
   config_param :dbname_if_missing_dbname_in_log, :string, default: nil
@@ -19,7 +21,7 @@ class Fluent::MySQLSlowQueryExInput < Fluent::NewTailInput
 
   def start
     @last_dbname_of = if @last_dbname_file
-                        @last_dbname_file_handle = File.open(@last_dbname_file, File::RDWR|File::CREAT, Fluent::DEFAULT_FILE_PERMISSION)
+                        @last_dbname_file_handle = File.open(@last_dbname_file, File::RDWR|File::CREAT, @file_perm)
                         @last_dbname_file_handle.sync = true
                         get_last_dbname()
                       else
@@ -70,13 +72,13 @@ class Fluent::MySQLSlowQueryExInput < Fluent::NewTailInput
         next
       end
       parsed_query = apply_dbname_to_record(parsed_query_unit)
-      es.add(Time.now.to_i, parsed_query)
+      es.add(Fluent::EventTime.now.to_i, parsed_query)
       save_last_dbname()
     end
 
     if !es.empty?
       begin
-        Fluent::Engine.emit_stream(@tag, es)
+        router.emit_stream(@tag, es)
       rescue
         # ignore errors. Engine shows logs and backtraces.
       end
